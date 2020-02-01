@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29306.81
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EmilyConsole", "EmilyConsole\EmilyConsole.csproj", "{F0BD6ED6-EA93-41E2-AD47-C54F9B94EA55}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C21D7E7C-326F-4092-BF42-89B689CE530A}"
+	ProjectSection(SolutionItems) = preProject
+		SystemFiles.cs = SystemFiles.cs
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F0BD6ED6-EA93-41E2-AD47-C54F9B94EA55}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F0BD6ED6-EA93-41E2-AD47-C54F9B94EA55}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F0BD6ED6-EA93-41E2-AD47-C54F9B94EA55}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F0BD6ED6-EA93-41E2-AD47-C54F9B94EA55}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C62A333A-0C4C-4FAA-8927-324F24C82335}
+	EndGlobalSection
+EndGlobal
