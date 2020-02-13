@@ -5,10 +5,17 @@ import getpass
 from pyjarowinkler import distance
 from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
+import pyttsx3
+
+emily = pyttsx3.init()
+voices = emily.getProperty('voices')
+emily.setProperty('voice', voices[10].id)
+emily.setProperty('rate', 172)
 
 
 class FileSystem:
     file_list = []
+    directory_list = []
     current_os = None
 
     def __init__(self):
@@ -29,7 +36,9 @@ class FileSystem:
         start_time = time.time()
         print("Gathering files please wait...")
         if self.current_os == "OSX":
-            self.file_list = get_all_files_mac(dir_path)
+            toup = get_all_files_mac(dir_path)
+            self.file_list = toup[0]
+            self.directory_list = toup[1]
         elif self.current_os == "linux":
             self.file_list = get_all_files_linux(dir_path)
         elif self.current_os == "windows":
@@ -43,13 +52,37 @@ class FileSystem:
     def get_files(self):
         return self.file_list
 
+    def get_dirs(self):
+        return self.directory_list
+
     def get_file_terms(self):
         file_terms = []
         for f in self.file_list:
             trimmed = trimToBackslash(f)
             final_term = remove_extensions(trimmed)
+            if len(final_term) < 3:
+                continue
+            if final_term.startswith("_"):
+                continue
+            if final_term.isnumeric():
+                continue
             file_terms.append(final_term)
         return file_terms
+
+    def get_dir_terms(self):
+        dir_terms = []
+        for d in self.directory_list:
+            trimmed = trimToBackslash(d)
+            if len(trimmed) < 3:
+                continue
+            if trimmed.isnumeric():
+                continue
+            if trimmed in dir_terms:
+                continue
+            if trimmed.startswith("."):
+                continue
+            dir_terms.append(trimmed)
+        return dir_terms
 
     def get_file_word_spellings(self):
         words = []
@@ -69,6 +102,56 @@ class FileSystem:
                 words.append(s)
                 # print("adding", s)
         return words
+
+    def find_dir(self, dir_to_find):
+        ranked_files = []
+        hasRefinedList = False
+        refinedList = []
+        # for exact matches
+        for d in self.directory_list:
+            trimmed = trimToBackslash(d).lower()
+            final_dir_name = trimmed.lower()
+            if dir_to_find == final_dir_name:
+                dist = distance.get_jaro_distance(dir_to_find, trimmed,
+                                                    winkler=True, scaling=0.1)
+                if dist < 0.7:
+                    continue
+                sa = [d, dist]
+                # sa = [f, 1.0]
+                refinedList.append(sa)
+                hasRefinedList = True
+        if hasRefinedList:
+            ranked_files = refinedList
+        else:
+            for d in self.directory_list:
+                trimmed = trimToBackslash(d)
+                dist = distance.get_jaro_distance(dir_to_find, trimmed,
+                                                  winkler=True, scaling=0.1)
+                if dist < 0.7:
+                    continue
+                sa = [d, dist]
+                ranked_files.append(sa)
+        ranked_files.sort(key=sortSecond, reverse=True)
+        count = 0
+        # for toup in ranked_files:
+        #     print(toup[0],toup[1])
+        topFile = ranked_files[0][0]
+        topFileSet = False
+
+        for k in ranked_files:
+            if count >= 50 or topFileSet:
+                break
+            if not topFileSet:
+                is_correct = requestCorrect_dir(k[0])
+                if is_correct:
+                    topFile = k[0]
+                    topFileSet = True
+                    continue
+            #print(k[0], "Score:", k[1])
+            count = count + 1
+
+        #print("Top file:", topFile)
+        return topFile
 
     def find_file(self, file_to_find):
         ranked_files = []
@@ -170,16 +253,18 @@ def get_all_files_win(dir_path):
 # Gets files from Applications and from user files
 def get_all_files_mac(dir_path):
     file_list = []
-
+    dir_list = []
     for dir in next(os.walk("/Applications"))[1]:
         file_list.append("/Applications/"+dir)
     for root, dirs, files in os.walk(dir_path):
         for dir in dirs:
             if dir.endswith(".app"):
                 file_list.append(os.path.join(root, dir))
+            else:
+                dir_list.append(os.path.join(root, dir))
         for file in files:
             file_list.append(os.path.join(root, file))
-    return file_list
+    return [file_list, dir_list]
 
 
 # gets files from /home/<current user>
@@ -189,74 +274,6 @@ def get_all_files_linux(dir_path):
         for file in files:
             file_list.append(os.path.join(root, file))
     return file_list
-
-
-def jaro_winkler_score(aString1, aString2):
-    return 1.0 - proximity(aString1, aString2)
-
-mWeightThreshold = 0.7
-mNumChars = 2
-def proximity(aString1, aString2):
-    lLen1 = len(aString1)
-    lLen2 = len(aString2)
-    if lLen1 == 0:
-        if lLen2 == 0:
-            return 1.0
-        else:
-            return 0.0
-
-    lSearchRange = max(0, max(lLen1, lLen2) / 2 - 1)
-
-    # default initialized to false
-    lMatched1 = []
-    lMatched2 = []
-
-    lNumCommon = 0
-    for i in range(lLen1):
-        lStart = max(0, i - lSearchRange)
-        lEnd = int(min(i + lSearchRange + 1, lLen2))
-        print(str(lStart))
-        print(str(lEnd))
-        for j in range(lStart, lEnd, 1):
-            if lMatched2[j]:
-                continue
-            if aString1[i] != aString2[j]:
-                continue
-            lMatched1[i] = True
-            lMatched2[j] = True
-            lNumCommon = lNumCommon + 1
-            break
-
-    if lNumCommon == 0:
-        return 0.0
-
-    lNumHalfTransposed = 0
-    k = 0
-    for i in range(lLen1):
-        if not lMatched1[i]:
-            continue
-        while not lMatched2[k]:
-            k = k + 1
-        if aString1[i] != aString2[k]:
-            lNumHalfTransposed = lNumHalfTransposed + 1
-        k = k + 1
-
-    lNumTransposed = lNumHalfTransposed / 2;
-
-
-    lNumCommonD = lNumCommon;
-    lWeight = (lNumCommonD / lLen1 + lNumCommonD / lLen2 +
-               (lNumCommon - lNumTransposed) / lNumCommonD) / 3.0
-
-    if lWeight <= mWeightThreshold:
-        return lWeight
-    lMax = min(mNumChars, min(len(aString1)), len(aString2))
-    lPos = 0;
-    while lPos < lMax and aString1[lPos] == aString2[lPos]:
-        lPos = lPos + 1
-    if lPos == 0:
-        return lWeight
-    return lWeight + 0.1 * lPos * (1.0 - lWeight)
 
 
 def trimToBackslash(s):
@@ -272,6 +289,20 @@ def sortSecond(val):
 
 def requestCorrect(var):
     print("is this the file you want?", var, "[y/n]")
+    emily.say("Is this the file you want?")
+    emily.runAndWait()
+    response = input()
+    if response == 'y':
+        return True
+    if response == 'n':
+        return False
+    else:
+        print("incorrect format returning false")
+        return False
+
+
+def requestCorrect_dir(var):
+    print("is this where to you to move your file?", var, "[y/n]")
     response = input()
     if response == 'y':
         return True
